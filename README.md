@@ -1,109 +1,125 @@
 # SmartDoc AI
 
-### 🚀 项目简介
+基于 Agentic RAG 架构的智能文档问答系统。上传 PDF，提问即可获得基于文档内容的精准回答。系统通过 LangGraph 工作流自主决策使用文档检索还是网络搜索，并具备自我纠错能力。
 
-本项目是一个基于 **Agentic RAG** 架构的智能知识库系统。它不仅能处理本地私有文档（PDF/Markdown），还能根据问题复杂度自主决策是否调用外部搜索（Tavily）或执行 Python 代码。通过 **LangGraph** 实现状态机逻辑，确保了 AI 推理过程的可控性与鲁棒性。
+## 技术栈
 
----
+| 层 | 技术 |
+|---|------|
+| LLM | OpenRouter (Gemini 2.0 Flash) |
+| Embedding | 智谱 AI (embedding-3) |
+| 编排 | LangGraph 状态机工作流 |
+| 后端 | FastAPI + SSE 流式输出 |
+| 向量库 | Supabase (pgvector) |
+| 缓存 | Redis (对话历史 + 答案缓存) |
+| 前端 | React + Tailwind CSS |
+| 部署 | Docker Compose |
 
-## 🛠 技术栈
-
-| 维度 | 技术选型 | 说明 |
-| --- | --- | --- |
-| **LLM / Embedding** | **智谱 AI (GLM-4-Flash / Embedding-3)** | 兼顾响应速度与极低成本（甚至免费额度）。 |
-| **Orchestration** | **LangChain / LangGraph** | 实现多智能体协作与复杂逻辑路由。 |
-| **Backend** | **FastAPI + Asyncio** | 异步高性能接口，支持 SSE 流式输出。 |
-| **Database** | **Supabase (pgvector)** | 向量数据与业务数据统一存储。 |
-| **Cache** | **Redis** | 存储 Chat History 状态及搜索结果缓存。 |
-| **Frontend** | **React + Tailwind CSS** | 响应式打字机交互界面。 |
-| **Observability** | **LangSmith** | 生产级链路追踪与 Prompt 调试。 |
-| **Deployment** | **Docker + Docker Compose** | 一键容器化部署环境。 |
-
----
-
-## 🏗 系统架构图
-
----
-
-## 📖 核心功能模块实现
-
-### 1. 智能数据处理流水线 (Data Pipeline)
-
-* **多格式解析**：支持 PDF、Markdown。使用 `RecursiveCharacterTextSplitter` 动态切片。
-* **混合搜索**：结合了向量检索（Vector Search）与关键词检索（BM25），解决专业术语匹配不到的问题。
-
-### 2. Agentic Workflow (核心逻辑)
-
-* **智能路由 (Router)**：通过 GLM-4 的 Function Calling 判断用户意图。
-* **反思循环 (Self-Correction)**：
-* **Grade Document**：自动评估检索到的文档与问题的相关性。
-* **Hallucination Check**：生成答案后，检查是否脱离了参考上下文。
-
-
-
-### 3. 高性能异步接口
-
-* **Streaming Response**：利用 FastAPI 的 `EventSourceResponse` 实现零延迟的流式输出。
-* **Memory Management**：在 Redis 中维护 Window-based Memory，自动截断过长对话。
-
----
-
-## 📦 项目安装与运行
-
-### 1. 环境准备
-
-```bash
-# 克隆项目
-git clone https://github.com/YolieDeng/SmartDoc_AI.git
-cd smartdoc_ai
-
-# 配置环境变量 .env
-ZHIPUAI_API_KEY=你的Key
-SUPABASE_URL=你的URL
-SUPABASE_KEY=你的Key
-TAVILY_API_KEY=你的Key
+## 工作流
 
 ```
-
-### 2. Docker 一键启动
-
-```bash
-docker-compose up -d
-
+用户提问 → Router (Function Calling 意图识别)
+              ├── rag_search → 智谱 Embedding + pgvector 向量检索
+              └── web_search → Tavily 网络搜索
+                      ↓
+              Generate (基于上下文生成回答)
+                      ↓
+              Reflect (质量检查)
+              ├── 合格 → 返回答案
+              └── 不合格 → 切换工具重试 (最多一次)
 ```
 
----
+## 项目结构
 
-## 📈 性能与评估 (Evaluation)
-
-* **Trace 追踪**：通过接入 LangSmith，实现了对每一轮对话的详细监控（包含 Token 消耗、节点耗时、检索命中率）。
-* **优化结果**：通过引入 **Rerank (重排序)** 机制，RAG 的 Top-3 召回准确率从初始的 65% 提升至 **88%**。
-
----
-
-## 📂 项目结构
-
-```text
+```
 .
 ├── backend/
+│   ├── main.py                    # FastAPI 入口
 │   ├── app/
-│   │   ├── core/           # 核心逻辑 (LangGraph 状态机)
-│   │   ├── api/            # FastAPI 路由
-│   │   ├── db/             # Supabase & Redis 交互
-│   │   └── tools/          # 自定义工具 (搜索, 计算)
-│   ├── main.py             # 入口文件
-│   └── Dockerfile
+│   │   ├── agent/
+│   │   │   ├── graph.py           # LangGraph 工作流 (Route→Tool→Generate→Reflect)
+│   │   │   ├── tools.py           # rag_search / web_search 工具
+│   │   │   └── state.py           # AgentState 定义
+│   │   ├── api/
+│   │   │   ├── qa.py              # POST /ask, POST /ask/stream
+│   │   │   └── upload.py          # POST /upload
+│   │   ├── services/
+│   │   │   ├── qa_service.py      # 问答编排 (非流式 + 流式)
+│   │   │   ├── document_service.py # PDF 解析 → 切片 → 向量化 → 入库
+│   │   │   └── session_service.py  # Redis 对话历史 + 答案缓存
+│   │   ├── core/
+│   │   │   ├── config.py          # pydantic-settings 配置
+│   │   │   ├── auth.py            # API Key 中间件 (ASGI)
+│   │   │   └── langsmith.py       # LangSmith 初始化
+│   │   └── db/
+│   │       ├── redis_client.py
+│   │       └── supabase_client.py
+│   ├── Dockerfile
+│   └── pyproject.toml
 ├── frontend/
-│   ├── src/                # React 组件与 Hooks
-│   └── tailwind.config.js
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── hooks/useChat.ts       # SSE 流式解析 + 状态管理
+│   │   └── components/
+│   │       ├── FileUpload.tsx
+│   │       ├── MessageList.tsx
+│   │       └── ChatInput.tsx
+│   ├── nginx.conf
+│   └── Dockerfile
 └── docker-compose.yml
-
 ```
 
----
+## 快速开始
 
-## 🚧 未来计划 (Roadmap)
+### 前置条件
 
-* [ ] 接入多模态模型（支持图片解析）。
-* [ ] 实现本地私有模型（Ollama）作为备用推理引擎。
-* [ ] 增加基于 RAGAS 的自动化评估套件。
+- Supabase 项目，启用 pgvector 扩展，并创建 `documents` 表和 `match_documents` RPC 函数
+- Redis
+- OpenRouter API Key
+- 智谱 AI API Key (用于 embedding)
+
+
+### 本地开发
+
+```bash
+# 后端
+cd backend
+cp .env.example .env   # 填入你的 API Key
+uv sync
+uv run uvicorn main:app --reload
+
+# 前端
+cd frontend
+npm install
+npm run dev
+```
+
+### Docker 部署
+
+```bash
+# 确保 backend/.env 已配置
+docker compose up -d
+# 前端: http://localhost:3000
+# 后端: http://localhost:8000/docs
+```
+
+## 环境变量
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `OPENROUTER_API_KEY` | 是 | Chat 模型 API Key |
+| `SUPABASE_URL` | 是 | Supabase 项目 URL |
+| `SUPABASE_KEY` | 是 | Supabase anon/service key |
+| `ZHIPUAI_API_KEY` | 是 | 智谱 embedding-3 API Key |
+| `TAVILY_API_KEY` | 否 | 网络搜索功能，留空则 web_search 不可用 |
+| `REDIS_URL` | 否 | 默认 `redis://localhost:6379/0` |
+| `API_KEY` | 否 | 接口鉴权，留空则不启用 |
+| `LANGSMITH_API_KEY` | 否 | LangSmith 监控，留空则不启用 |
+
+## API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/upload` | 上传 PDF 文件，自动解析、切片、向量化入库 |
+| POST | `/ask` | 非流式问答 |
+| POST | `/ask/stream` | SSE 流式问答 |
