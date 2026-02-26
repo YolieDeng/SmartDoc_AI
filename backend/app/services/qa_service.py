@@ -13,7 +13,7 @@ from app.services.session_service import (
     set_cached_answer,
 )
 
-ZHIPU_CHAT_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
     "你是一个专业的问答助手。请根据参考资料回答用户问题。"
@@ -109,7 +109,7 @@ async def ask_stream(
 
     settings = get_settings()
     headers = {
-        "Authorization": f"Bearer {settings.zhipuai_api_key}",
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
     }
 
@@ -117,9 +117,9 @@ async def ask_stream(
     async with httpx.AsyncClient() as client:
         async with client.stream(
             "POST",
-            ZHIPU_CHAT_URL,
+            OPENROUTER_CHAT_URL,
             json={
-                "model": "glm-4-flash",
+                "model": settings.openrouter_model,
                 "messages": messages,
                 "stream": True,
             },

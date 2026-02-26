@@ -7,7 +7,7 @@ from app.agent.state import AgentState
 from app.agent.tools import rag_search, web_search
 from app.core.config import get_settings
 
-ZHIPU_CHAT_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Router 使用的 Function Calling 工具定义
 TOOL_DEFINITIONS = [
@@ -57,7 +57,7 @@ UNCERTAIN_KEYWORDS = [
 def _get_headers() -> dict:
     settings = get_settings()
     return {
-        "Authorization": f"Bearer {settings.zhipuai_api_key}",
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
     }
 
@@ -81,9 +81,9 @@ async def route_node(state: AgentState) -> dict:
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            ZHIPU_CHAT_URL,
+            OPENROUTER_CHAT_URL,
             json={
-                "model": "glm-4-flash",
+                "model": get_settings().openrouter_model,
                 "messages": messages,
                 "tools": TOOL_DEFINITIONS,
             },
@@ -134,8 +134,8 @@ async def generate_node(state: AgentState) -> dict:
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            ZHIPU_CHAT_URL,
-            json={"model": "glm-4-flash", "messages": messages},
+            OPENROUTER_CHAT_URL,
+            json={"model": get_settings().openrouter_model, "messages": messages},
             headers=_get_headers(),
             timeout=60,
         )

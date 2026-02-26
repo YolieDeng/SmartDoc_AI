@@ -4,7 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    zhipuai_api_key: str
+    zhipuai_api_key: str = ""          # 仅 embedding 使用
+    openrouter_api_key: str            # Chat 模型
+    openrouter_model: str = "google/gemini-2.0-flash-001"
     supabase_url: str
     supabase_key: str
     redis_url: str = "redis://localhost:6379/0"
