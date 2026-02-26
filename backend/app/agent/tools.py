@@ -13,6 +13,8 @@ TOP_K = 3
 async def rag_search(question: str) -> dict:
     """本地文档向量检索，返回 {context, sources}。"""
     settings = get_settings()
+    if not settings.zhipuai_api_key:
+        return {"context": "", "sources": []}
     headers = {
         "Authorization": f"Bearer {settings.zhipuai_api_key}",
         "Content-Type": "application/json",
@@ -42,6 +44,8 @@ async def rag_search(question: str) -> dict:
 async def web_search(question: str) -> dict:
     """Tavily 网络搜索，返回 {context, sources}。"""
     settings = get_settings()
+    if not settings.tavily_api_key:
+        return {"context": "", "sources": []}
     client = TavilyClient(api_key=settings.tavily_api_key)
     result = await asyncio.to_thread(
         client.search, question, max_results=3

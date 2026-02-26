@@ -3,6 +3,8 @@ import { useState, useCallback, useRef } from 'react'
 export interface Message {
   role: 'user' | 'assistant'
   content: string
+  tool?: string
+  sources?: string[]
 }
 
 export function useChat() {
@@ -62,6 +64,33 @@ export function useChat() {
                 updated[updated.length - 1] = {
                   ...last,
                   content: last.content + evt.content,
+                }
+                return updated
+              })
+            } else if (evt.type === 'tool') {
+              setMessages((prev) => {
+                const updated = [...prev]
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  tool: evt.name,
+                }
+                return updated
+              })
+            } else if (evt.type === 'sources') {
+              setMessages((prev) => {
+                const updated = [...prev]
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  sources: evt.content,
+                }
+                return updated
+              })
+            } else if (evt.type === 'error') {
+              setMessages((prev) => {
+                const updated = [...prev]
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  content: evt.content,
                 }
                 return updated
               })

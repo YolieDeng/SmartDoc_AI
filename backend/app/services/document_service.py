@@ -21,6 +21,9 @@ async def process_pdf(file: UploadFile) -> int:
     """完整流水线：保存 → 解析切片 → 向量化 → 入库，返回 chunk 数量。"""
     settings = get_settings()
 
+    if not settings.zhipuai_api_key:
+        raise ValueError("未配置 ZHIPUAI_API_KEY，无法进行文档向量化")
+
     # 1. 保存临时文件（PyMuPDFLoader 需要文件路径）
     suffix = Path(file.filename or "doc.pdf").suffix
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)

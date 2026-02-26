@@ -21,5 +21,9 @@ async def upload_document(file: UploadFile):
     # 重置指针供后续读取
     await file.seek(0)
 
-    chunks_count = await process_pdf(file)
+    try:
+        chunks_count = await process_pdf(file)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return {"status": "success", "chunks_count": chunks_count}

@@ -38,7 +38,22 @@ export default function MessageList({ messages }: Props) {
                 : 'bg-gray-100 text-gray-800'
             }`}
           >
+            {msg.tool && (
+              <div className="mb-1 text-xs text-gray-400">
+                {msg.tool === 'web_search' ? '🌐 网络搜索' : '📄 文档检索'}
+              </div>
+            )}
             {msg.content || '...'}
+            {msg.sources && msg.sources.length > 0 && (
+              <details className="mt-2 text-xs text-gray-400">
+                <summary className="cursor-pointer">参考来源 ({msg.sources.length})</summary>
+                <ul className="mt-1 space-y-1 list-disc pl-4">
+                  {msg.sources.map((s, j) => (
+                    <li key={j}>{s.slice(0, 100)}...</li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </div>
         </div>
       ))}

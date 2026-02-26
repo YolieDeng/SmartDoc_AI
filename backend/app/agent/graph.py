@@ -66,7 +66,7 @@ def _get_headers() -> dict:
 
 
 async def route_node(state: AgentState) -> dict:
-    """Router：用 GLM-4 Function Calling 判断该用哪个工具。"""
+    """Router：用 Function Calling 判断该用哪个工具。"""
     messages = [
         {
             "role": "system",
@@ -97,13 +97,13 @@ async def route_node(state: AgentState) -> dict:
     if tool_calls:
         return {"tool_name": tool_calls[0]["function"]["name"]}
     # 默认走 RAG
-    return {"tool_name": "rag"}
+    return {"tool_name": "rag_search"}
 
 
 async def tool_node(state: AgentState) -> dict:
     """执行 Router 选择的工具。"""
     question = state["question"]
-    if state["tool_name"] == "web":
+    if state["tool_name"] in ("web", "web_search"):
         result = await web_search(question)
     else:
         result = await rag_search(question)
@@ -157,8 +157,8 @@ def reflect_edge(state: AgentState) -> str:
 
 async def switch_tool_node(state: AgentState) -> dict:
     """切换工具并标记已重试。"""
-    current = state.get("tool_name", "rag")
-    new_tool = "web" if current == "rag" else "rag"
+    current = state.get("tool_name", "rag_search")
+    new_tool = "web_search" if current in ("rag", "rag_search") else "rag_search"
     return {"tool_name": new_tool, "retried": True}
 
 

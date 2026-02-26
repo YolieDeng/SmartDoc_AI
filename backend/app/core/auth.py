@@ -1,25 +1,52 @@
-from fastapi import Request, HTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
+import json
+
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import get_settings
 
+# 不需要鉴权的路径
+_PUBLIC_PATHS = {"/docs", "/openapi.json", "/redoc"}
 
-class ApiKeyMiddleware(BaseHTTPMiddleware):
-    """简单的 API Key 校验中间件。
-    如果 API_KEY 未配置（空字符串），则跳过校验。
-    """
 
-    async def dispatch(self, request: Request, call_next):
+class ApiKeyMiddleware:
+    """纯 ASGI 中间件，不会缓冲 response body，兼容 SSE 流式输出。"""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
         api_key = get_settings().api_key
         if not api_key:
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
-        # 放行 docs 和 openapi
-        if request.url.path in ("/docs", "/openapi.json", "/redoc"):
-            return await call_next(request)
+        path = scope.get("path", "")
+        if path in _PUBLIC_PATHS:
+            await self.app(scope, receive, send)
+            return
 
-        token = request.headers.get("X-API-Key", "")
+        # 从 headers 中提取 X-API-Key
+        headers = dict(scope.get("headers", []))
+        token = headers.get(b"x-api-key", b"").decode()
+
         if token != api_key:
-            raise HTTPException(status_code=401, detail="Invalid API Key")
+            body = json.dumps({"detail": "Invalid API Key"}).encode()
+            await send({
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                    [b"content-length", str(len(body)).encode()],
+                ],
+            })
+            await send({
+                "type": "http.response.body",
+                "body": body,
+            })
+            return
 
-        return await call_next(request)
+        await self.app(scope, receive, send)
