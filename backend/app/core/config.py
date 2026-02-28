@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     openrouter_api_key: str            # Chat + Embedding 共用
     openrouter_model: str = "google/gemini-2.0-flash-001"
-    openrouter_embed_model: str = "google/gemma-3-1b"  # Embedding 模型
+    openrouter_embed_model: str = "google/gemini-embedding-001"
     supabase_url: str
     supabase_key: str
     redis_url: str = "redis://localhost:6379/0"
