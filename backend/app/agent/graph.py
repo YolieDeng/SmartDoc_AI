@@ -50,7 +50,14 @@ TOOL_DEFINITIONS = [
 # 判定回答质量不合格的关键词
 UNCERTAIN_KEYWORDS = [
     "不知道", "未找到", "无法回答", "没有相关",
-    "无法确定", "不确定", "抱歉",
+    "无法确定", "不确定", "抱歉", "未提及",
+]
+
+# 用户明确要求联网搜索的关键词
+WEB_SEARCH_KEYWORDS = [
+    "上网查", "联网查", "联网搜", "网上搜", "网上查",
+    "搜索一下", "百度", "谷歌", "google",
+    "最新", "今天", "今日", "实时",
 ]
 
 
@@ -66,37 +73,10 @@ def _get_headers() -> dict:
 
 
 async def route_node(state: AgentState) -> dict:
-    """Router：用 Function Calling 判断该用哪个工具。"""
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "你是一个智能路由器。根据用户问题判断应该使用哪个工具。"
-                "如果问题涉及用户上传的文档、公司内部资料，使用 rag_search。"
-                "如果问题涉及新闻、实时信息、通用知识，使用 web_search。"
-            ),
-        },
-        {"role": "user", "content": state["question"]},
-    ]
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            OPENROUTER_CHAT_URL,
-            json={
-                "model": get_settings().openrouter_model,
-                "messages": messages,
-                "tools": TOOL_DEFINITIONS,
-            },
-            headers=_get_headers(),
-            timeout=30,
-        )
-        resp.raise_for_status()
-        choice = resp.json()["choices"][0]["message"]
-
-    tool_calls = choice.get("tool_calls", [])
-    if tool_calls:
-        return {"tool_name": tool_calls[0]["function"]["name"]}
-    # 默认走 RAG
+    """Router：默认走 rag_search，用户明确要求联网时走 web_search。"""
+    question = state["question"].lower()
+    if any(kw in question for kw in WEB_SEARCH_KEYWORDS):
+        return {"tool_name": "web_search"}
     return {"tool_name": "rag_search"}
 
 
@@ -121,21 +101,30 @@ async def generate_node(state: AgentState) -> dict:
         {
             "role": "system",
             "content": (
-                "你是一个专业的问答助手。请根据参考资料回答用户问题。"
-                "如果参考资料中没有相关信息，请如实说明。不要编造。"
+                "你是一个专业的问答助手。你必须严格根据下面提供的参考资料回答用户问题。"
+                "回答必须直接引用参考资料中的原文信息，不得添加、推测或编造任何参考资料中没有的内容。"
+                "如果参考资料中没有相关信息，请明确回复'参考资料中未提及相关信息'。"
             ),
         },
     ]
     messages.extend(history)
     messages.append({
         "role": "user",
-        "content": f"参考资料：\n{context}\n\n用户问题：{state['question']}",
+        "content": (
+            f"以下是参考资料：\n\n{context}\n\n---\n\n"
+            f"用户问题：{state['question']}\n\n"
+            f"请严格根据以上参考资料回答，直接引用原文中的信息。"
+        ),
     })
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             OPENROUTER_CHAT_URL,
-            json={"model": get_settings().openrouter_model, "messages": messages},
+            json={
+                "model": get_settings().openrouter_model,
+                "messages": messages,
+                "temperature": 0,
+            },
             headers=_get_headers(),
             timeout=60,
         )

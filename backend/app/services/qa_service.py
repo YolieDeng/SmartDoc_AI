@@ -15,8 +15,9 @@ from app.services.session_service import (
 OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
-    "你是一个专业的问答助手。请根据参考资料回答用户问题。"
-    "如果参考资料中没有相关信息，请如实说明。不要编造。"
+    "你是一个专业的问答助手。你必须严格根据下面提供的参考资料回答用户问题。"
+    "回答必须直接引用参考资料中的原文信息，不得添加、推测或编造任何参考资料中没有的内容。"
+    "如果参考资料中没有相关信息，请明确回复'参考资料中未提及相关信息'。"
 )
 
 
@@ -122,7 +123,11 @@ async def ask_stream(
     messages.extend(history)
     messages.append({
         "role": "user",
-        "content": f"参考资料：\n{context}\n\n用户问题：{question}",
+        "content": (
+            f"以下是参考资料：\n\n{context}\n\n---\n\n"
+            f"用户问题：{question}\n\n"
+            f"请严格根据以上参考资料回答，直接引用原文中的信息。"
+        ),
     })
 
     settings = get_settings()
@@ -141,6 +146,7 @@ async def ask_stream(
                     "model": settings.openrouter_model,
                     "messages": messages,
                     "stream": True,
+                    "temperature": 0,
                 },
                 headers=headers,
                 timeout=60,
