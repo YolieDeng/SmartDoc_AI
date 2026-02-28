@@ -29,7 +29,8 @@ async def process_pdf(file: UploadFile) -> int:
         tmp.close()
 
         # 2. 解析 + 切片（CPU 密集，放到线程池）
-        chunks = await asyncio.to_thread(_parse_and_split, tmp.name)
+        original_filename = file.filename or "unknown.pdf"
+        chunks = await asyncio.to_thread(_parse_and_split, tmp.name, original_filename)
         if not chunks:
             return 0
 
@@ -56,14 +57,17 @@ async def process_pdf(file: UploadFile) -> int:
 # ── 内部函数 ──────────────────────────────────────────────
 
 
-def _parse_and_split(file_path: str) -> list:
+def _parse_and_split(file_path: str, original_filename: str) -> list:
     """解析 PDF 并切片。"""
     docs = PyMuPDFLoader(file_path).load()
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
     )
-    return splitter.split_documents(docs)
+    chunks = splitter.split_documents(docs)
+    for chunk in chunks:
+        chunk.metadata["source"] = original_filename
+    return chunks
 
 
 async def _batch_embed(texts: list[str], settings) -> list[list[float]]:

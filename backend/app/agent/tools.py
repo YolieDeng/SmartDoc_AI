@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.db.supabase_client import get_supabase
 
 OPENROUTER_EMBED_URL = "https://openrouter.ai/api/v1/embeddings"
-TOP_K = 3
+TOP_K = 5
 
 
 async def rag_search(question: str) -> dict:
@@ -35,7 +35,11 @@ async def rag_search(question: str) -> dict:
         return {"context": "", "sources": []}
 
     sources = [m["content"] for m in matches]
-    context = "\n\n---\n\n".join(sources)
+    context_parts = []
+    for m in matches:
+        source_name = (m.get("metadata") or {}).get("source", "未知文档")
+        context_parts.append(f"【来源：{source_name}】\n{m['content']}")
+    context = "\n\n---\n\n".join(context_parts)
     return {"context": context, "sources": sources}
 
 
