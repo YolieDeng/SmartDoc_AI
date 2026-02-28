@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { Message } from '../hooks/useChat'
 
 interface Props {
@@ -31,10 +32,9 @@ export default function MessageList({ messages }: Props) {
           }`}
         >
           <div
-            className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm
-                        whitespace-pre-wrap ${
+            className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
               msg.role === 'user'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white whitespace-pre-wrap'
                 : 'bg-gray-100 text-gray-800'
             }`}
           >
@@ -43,7 +43,13 @@ export default function MessageList({ messages }: Props) {
                 {msg.tool === 'web_search' ? '🌐 网络搜索' : '📄 文档检索'}
               </div>
             )}
-            {msg.content || '...'}
+            {msg.role === 'assistant' ? (
+              <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2">
+                <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
+              </div>
+            ) : (
+              msg.content || '...'
+            )}
             {msg.sources && msg.sources.length > 0 && (
               <details className="mt-2 text-xs text-gray-400">
                 <summary className="cursor-pointer">参考来源 ({msg.sources.length})</summary>
