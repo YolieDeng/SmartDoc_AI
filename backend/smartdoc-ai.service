@@ -6,7 +6,9 @@ After=network.target redis.service
 Type=simple
 WorkingDirectory=/opt/smartdoc-ai/backend
 EnvironmentFile=/opt/smartdoc-ai/backend/.env
-ExecStart=/root/.local/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000
+ExecStart=/usr/local/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000 --access-log --log-level info
+StandardOutput=journal
+StandardError=journal
 Restart=always
 RestartSec=5
 

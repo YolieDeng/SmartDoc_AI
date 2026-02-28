@@ -7,7 +7,7 @@ set -euo pipefail
 # ============================================================
 
 # ---------- 配置（按需修改） ----------
-SERVER="root@YOUR_SERVER_IP"
+SERVER="root@119.91.226.17"
 REMOTE_DIR="/opt/smartdoc-ai/backend"
 SERVICE_NAME="smartdoc-ai"
 BACKUP_DIR="/opt/smartdoc-ai/_backups"

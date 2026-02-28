@@ -7,7 +7,7 @@ set -euo pipefail
 # ============================================================
 
 # ---------- 配置（按需修改） ----------
-SERVER="root@YOUR_SERVER_IP"
+SERVER="root@119.91.226.17"
 NGINX_HTML_DIR="/usr/share/nginx/html"
 NGINX_CONF_DIR="/etc/nginx/conf.d"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)

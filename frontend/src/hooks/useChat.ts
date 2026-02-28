@@ -10,7 +10,7 @@ export interface Message {
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [streaming, setStreaming] = useState(false)
-  const sessionId = useRef(crypto.randomUUID())
+  const sessionId = useRef(Math.random().toString(36).slice(2) + Date.now().toString(36))
   const abortRef = useRef<AbortController | null>(null)
 
   const send = useCallback(async (question: string) => {
@@ -123,7 +123,7 @@ export function useChat() {
 
   const clear = useCallback(() => {
     setMessages([])
-    sessionId.current = crypto.randomUUID()
+    sessionId.current = Math.random().toString(36).slice(2) + Date.now().toString(36)
   }, [])
 
   return { messages, streaming, send, stop, clear }
