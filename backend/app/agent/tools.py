@@ -6,25 +6,23 @@ from tavily import TavilyClient
 from app.core.config import get_settings
 from app.db.supabase_client import get_supabase
 
-ZHIPU_EMBED_URL = "https://open.bigmodel.cn/api/paas/v4/embeddings"
+OPENROUTER_EMBED_URL = "https://openrouter.ai/api/v1/embeddings"
 TOP_K = 3
 
 
 async def rag_search(question: str) -> dict:
     """本地文档向量检索，返回 {context, sources}。"""
     settings = get_settings()
-    if not settings.zhipuai_api_key:
-        return {"context": "", "sources": []}
     headers = {
-        "Authorization": f"Bearer {settings.zhipuai_api_key}",
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
     }
 
     # 向量化
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            ZHIPU_EMBED_URL,
-            json={"model": "embedding-3", "input": [question]},
+            OPENROUTER_EMBED_URL,
+            json={"model": settings.openrouter_embed_model, "input": [question]},
             headers=headers,
             timeout=30,
         )

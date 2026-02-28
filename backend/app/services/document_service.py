@@ -14,15 +14,12 @@ from app.db.supabase_client import get_supabase
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
-ZHIPU_EMBED_URL = "https://open.bigmodel.cn/api/paas/v4/embeddings"
+OPENROUTER_EMBED_URL = "https://openrouter.ai/api/v1/embeddings"
 
 
 async def process_pdf(file: UploadFile) -> int:
     """完整流水线：保存 → 解析切片 → 向量化 → 入库，返回 chunk 数量。"""
     settings = get_settings()
-
-    if not settings.zhipuai_api_key:
-        raise ValueError("未配置 ZHIPUAI_API_KEY，无法进行文档向量化")
 
     # 1. 保存临时文件（PyMuPDFLoader 需要文件路径）
     suffix = Path(file.filename or "doc.pdf").suffix
@@ -38,7 +35,7 @@ async def process_pdf(file: UploadFile) -> int:
 
         # 3. 批量向量化
         texts = [c.page_content for c in chunks]
-        embeddings = await _batch_embed(texts, settings.zhipuai_api_key, settings.embedding_batch_size)
+        embeddings = await _batch_embed(texts, settings)
 
         # 4. 批量入库
         rows = [
@@ -69,15 +66,18 @@ def _parse_and_split(file_path: str) -> list:
     return splitter.split_documents(docs)
 
 
-async def _batch_embed(texts: list[str], api_key: str, batch_size: int) -> list[list[float]]:
-    """分批并发调用智谱 embedding-3（直接 HTTP，避免 SDK 版本冲突）。"""
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    batches = [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
+async def _batch_embed(texts: list[str], settings) -> list[list[float]]:
+    """分批并发调用 OpenRouter embedding 接口。"""
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+    }
+    batches = [texts[i : i + settings.embedding_batch_size] for i in range(0, len(texts), settings.embedding_batch_size)]
 
     async def _embed_one(client: httpx.AsyncClient, batch: list[str]) -> list[list[float]]:
         resp = await client.post(
-            ZHIPU_EMBED_URL,
-            json={"model": "embedding-3", "input": batch},
+            OPENROUTER_EMBED_URL,
+            json={"model": settings.openrouter_embed_model, "input": batch},
             headers=headers,
             timeout=60,
         )
